@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 5000;
 
 app.use(express.json());
 
@@ -736,7 +736,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Fantasy Sports Command Center running at http://0.0.0.0:${PORT}`);
+    console.log(`Fantasy Sports Command Center running at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV || 'development'})`);
   });
 }
 
