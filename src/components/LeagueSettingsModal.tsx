@@ -68,6 +68,50 @@ export const LeagueSettingsModal: React.FC<LeagueSettingsModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+          <div className="p-3 bg-purple-950/30 border border-purple-800/50 rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">
+                Your Managed Team Details
+              </label>
+              {formData.isYahooSynced && (
+                <span className="text-[10px] bg-purple-900/60 text-purple-200 border border-purple-700/50 px-1.5 py-0.5 rounded font-mono">
+                  Y! League #{formData.yahooLeagueId || '847291'}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2">
+                <label className="text-zinc-400 font-semibold text-[10px] block mb-1">
+                  YOUR TEAM NAME
+                </label>
+                <input
+                  id="input-my-team-name"
+                  type="text"
+                  value={formData.myTeamName || 'Apex Dominators'}
+                  onChange={(e) => setFormData({ ...formData, myTeamName: e.target.value })}
+                  placeholder="e.g. Apex Dominators"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 focus:border-purple-500 outline-none text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-400 font-semibold text-[10px] block mb-1">
+                  YAHOO TEAM #
+                </label>
+                <select
+                  id="select-my-team-number"
+                  value={formData.myTeamNumber || 1}
+                  onChange={(e) => setFormData({ ...formData, myTeamNumber: Number(e.target.value) })}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 focus:border-purple-500 outline-none text-xs font-mono cursor-pointer"
+                >
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                    <option key={n} value={n}>Team #{n}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="text-zinc-400 font-bold text-[10px] uppercase mb-1 block">LEAGUE NAME</label>
             <input

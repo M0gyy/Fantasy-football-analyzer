@@ -9,7 +9,8 @@ import {
   Sparkles,
   Settings,
   Bot,
-  Activity
+  Activity,
+  Award
 } from 'lucide-react';
 import { LeagueSettings } from '../types';
 
@@ -32,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Architect', icon: LayoutDashboard },
+    { id: 'analysts', label: 'Analyst Hub', icon: Award },
     { id: 'nflfastr', label: 'Team Matchups', icon: Activity },
     { id: 'roster', label: 'Roster Inspector', icon: Users },
     { id: 'trade', label: 'Trade Machine', icon: ArrowLeftRight },
@@ -56,6 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="hidden lg:flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-950 px-2.5 py-1 rounded border border-zinc-800">
+            <span className="text-emerald-400 font-bold">2026 Season</span>
+            <span className="text-zinc-600">•</span>
             <span className="text-indigo-400 font-bold">{leagueSettings.sport}</span>
             <span className="text-zinc-600">•</span>
             <span className="text-amber-400">{leagueSettings.scoringFormat}</span>
@@ -94,12 +98,20 @@ export const Header: React.FC<HeaderProps> = ({
             id="btn-import-yahoo-header"
             onClick={onOpenYahooImport}
             className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-950/80 hover:bg-purple-900 border border-purple-700/60 text-purple-200 hover:text-white rounded text-xs font-semibold font-mono transition-all duration-150 cursor-pointer shadow-sm shadow-purple-950/50"
-            title="Import from Yahoo Fantasy"
+            title="Manage Yahoo Fantasy Team Sync"
           >
             <span className="w-4 h-4 rounded bg-purple-600 text-white font-bold text-[10px] flex items-center justify-center leading-none">
               Y!
             </span>
-            <span className="hidden sm:inline">Yahoo! import</span>
+            <span className="hidden sm:inline-flex items-center gap-1">
+              <span className="text-purple-300 font-bold">
+                Team #{leagueSettings.myTeamNumber || 1}:
+              </span>
+              <span className="max-w-[130px] truncate">
+                {leagueSettings.myTeamName || 'Apex Dominators'}
+              </span>
+            </span>
+            <span className="sm:hidden">Yahoo!</span>
           </button>
 
           <button

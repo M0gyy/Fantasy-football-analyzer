@@ -511,6 +511,85 @@ Identify top 4-6 sleeper candidates. For each sleeper candidate, assign an upsid
   }
 });
 
+// 4d. AI Expert Analyst Consensus Engine Endpoint
+app.post("/api/ai/analyst-consensus", async (req, res) => {
+  try {
+    const { players, selectedPosition } = req.body;
+    const aiClient = getAiClient();
+
+    const prompt = `
+Analyze the following player data and top analyst ranking sources (FantasyPros ECR, ESPN Mike Clay, Establish The Run Evan Silva, PFF Analytics, Matthew Berry, Matt Harmon Yahoo) for position: ${selectedPosition || 'ALL'}.
+
+Players Data:
+${JSON.stringify(players ? players.slice(0, 15) : [], null, 2)}
+
+Synthesize key expert consensus takeaways:
+1. Executive Consensus Brief: 2-3 sentence overview of major expert agreement & positional shifts.
+2. Unanimous "Must-Start" Upgrades: 2-3 players all top analysts unanimously recommend starting this week.
+3. High Analyst Disagreement / Volatility Players: 2 players where top analysts strongly disagree (high variance), explaining why.
+4. Top Expert "Love" Sleeper Pick: 1 high-upside player with strong backing from specialized analysts (e.g. Reception Perception or ETR).
+`;
+
+    const response = await aiClient.models.generateContent({
+      model: "gemini-3.6-flash",
+      contents: prompt,
+      config: {
+        systemInstruction: "You are a master fantasy football expert consensus analyst aggregating insights from FantasyPros ECR, Mike Clay, Evan Silva, PFF, Matthew Berry, and Matt Harmon.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            executiveBrief: { type: Type.STRING },
+            unanimousStarts: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  playerName: { type: Type.STRING },
+                  position: { type: Type.STRING },
+                  consensusReasoning: { type: Type.STRING }
+                },
+                required: ["playerName", "position", "consensusReasoning"]
+              }
+            },
+            disagreementPlayers: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  playerName: { type: Type.STRING },
+                  position: { type: Type.STRING },
+                  varianceReason: { type: Type.STRING },
+                  bullCase: { type: Type.STRING },
+                  bearCase: { type: Type.STRING }
+                },
+                required: ["playerName", "position", "varianceReason", "bullCase", "bearCase"]
+              }
+            },
+            expertLoveSleeper: {
+              type: Type.OBJECT,
+              properties: {
+                playerName: { type: Type.STRING },
+                position: { type: Type.STRING },
+                championAnalyst: { type: Type.STRING },
+                breakoutCase: { type: Type.STRING }
+              },
+              required: ["playerName", "position", "championAnalyst", "breakoutCase"]
+            }
+          },
+          required: ["executiveBrief", "unanimousStarts", "disagreementPlayers", "expertLoveSleeper"]
+        }
+      }
+    });
+
+    const resultText = response.text || "{}";
+    res.json(JSON.parse(resultText));
+  } catch (error: any) {
+    console.error("Error in /api/ai/analyst-consensus:", error?.message || error);
+    res.status(500).json({ error: "Failed to generate analyst consensus summary", details: error?.message || String(error) });
+  }
+});
+
 // 5. AI Draft Recommendation Endpoint
 app.post("/api/ai/draft-recommendation", async (req, res) => {
   try {

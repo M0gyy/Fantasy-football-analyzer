@@ -15,8 +15,9 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
   onImportSuccess
 }) => {
   const [leagueId, setLeagueId] = useState('847291');
-  const [season, setSeason] = useState('2024');
+  const [season, setSeason] = useState('2026');
   const [teamNumber, setTeamNumber] = useState('1');
+  const [userTeamName, setUserTeamName] = useState('Apex Dominators');
   const [importMode, setImportMode] = useState<'ID' | 'PRESET'>('PRESET');
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<'IDLE' | 'AUTH' | 'FETCHING' | 'SUCCESS'>('IDLE');
@@ -24,14 +25,23 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
 
   if (!isOpen) return null;
 
+  const PRESET_YAHOO_TEAMS = [
+    { num: '1', name: 'Apex Dominators (Your Team)' },
+    { num: '2', name: 'Mahomes & The Kingdom' },
+    { num: '3', name: 'Gridiron Blitzers' },
+    { num: '4', name: 'Bay Area Bombers' },
+    { num: '5', name: 'Windy City Blitz' },
+    { num: '6', name: 'Steel Curtain Squad' },
+  ];
+
   const handleImport = (presetName?: string, presetFormat?: 'PPR' | 'HALF_PPR' | 'SUPERFLEX') => {
     setIsLoading(true);
     setStep('AUTH');
-    setProgressMsg('Connecting to Yahoo Fantasy API OAuth 2.0 gateway...');
+    setProgressMsg(`Connecting to Yahoo Fantasy API OAuth 2.0 gateway for Team #${teamNumber}...`);
 
     setTimeout(() => {
       setStep('FETCHING');
-      setProgressMsg('Reading Yahoo League Settings & Scoring Matrices...');
+      setProgressMsg(`Reading Yahoo Team #${teamNumber} (${userTeamName}) Roster & Settings...`);
     }, 900);
 
     setTimeout(() => {
@@ -51,7 +61,11 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
         scoringFormat: format,
         teamsCount: 12,
         faabBudget: 100,
-        currentWeek: 9
+        currentWeek: 1,
+        myTeamName: userTeamName.replace(/\(Your Team\)/g, '').trim() || `Yahoo Team #${teamNumber}`,
+        myTeamNumber: parseInt(teamNumber, 10) || 1,
+        yahooLeagueId: leagueId,
+        isYahooSynced: true
       };
 
       // Create a customized Yahoo synced roster
@@ -124,7 +138,7 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Sample Yahoo Leagues
+            Preset Yahoo Leagues
           </button>
           <button
             onClick={() => setImportMode('ID')}
@@ -164,7 +178,45 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
 
         {/* Content based on Mode */}
         {!isLoading && step === 'IDLE' && importMode === 'PRESET' && (
-          <div className="space-y-2.5">
+          <div className="space-y-3">
+            <div className="p-3 bg-purple-950/40 border border-purple-800/60 rounded-lg space-y-2">
+              <label className="text-[11px] font-bold text-purple-300 block font-sans uppercase">
+                Identify Your Managed Yahoo Team
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="text-zinc-400 font-semibold text-[10px] block mb-1">
+                    YOUR TEAM NAME
+                  </label>
+                  <input
+                    type="text"
+                    value={userTeamName}
+                    onChange={(e) => setUserTeamName(e.target.value)}
+                    placeholder="e.g. Apex Dominators"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 focus:border-purple-500 outline-none font-sans text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 font-semibold text-[10px] block mb-1">
+                    TEAM NUMBER
+                  </label>
+                  <select
+                    value={teamNumber}
+                    onChange={(e) => {
+                      setTeamNumber(e.target.value);
+                      const matched = PRESET_YAHOO_TEAMS.find(t => t.num === e.target.value);
+                      if (matched) setUserTeamName(matched.name.replace(/\(Your Team\)/g, '').trim());
+                    }}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 focus:border-purple-500 outline-none text-xs font-mono cursor-pointer"
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                      <option key={n} value={n}>Team #{n}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <label className="text-[11px] font-semibold text-zinc-300 block font-sans">
               Select a pre-configured Yahoo League template:
             </label>
@@ -232,6 +284,44 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
             }}
             className="space-y-3 text-xs"
           >
+            <div className="p-3 bg-purple-950/40 border border-purple-800/60 rounded-lg space-y-2">
+              <label className="text-[11px] font-bold text-purple-300 block font-sans uppercase">
+                Identify Your Yahoo Team
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="text-zinc-400 font-semibold text-[10px] block mb-1">
+                    YOUR TEAM NAME
+                  </label>
+                  <input
+                    type="text"
+                    value={userTeamName}
+                    onChange={(e) => setUserTeamName(e.target.value)}
+                    placeholder="e.g. Apex Dominators"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 focus:border-purple-500 outline-none font-sans text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 font-semibold text-[10px] block mb-1">
+                    TEAM NUMBER
+                  </label>
+                  <select
+                    value={teamNumber}
+                    onChange={(e) => {
+                      setTeamNumber(e.target.value);
+                      const matched = PRESET_YAHOO_TEAMS.find(t => t.num === e.target.value);
+                      if (matched) setUserTeamName(matched.name.replace(/\(Your Team\)/g, '').trim());
+                    }}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-zinc-100 focus:border-purple-500 outline-none text-xs font-mono cursor-pointer"
+                  >
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                      <option key={n} value={n}>Team #{n}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="text-zinc-400 font-bold text-[10px] uppercase mb-1 block">
                 YAHOO LEAGUE ID
@@ -259,9 +349,9 @@ export const YahooImportModal: React.FC<YahooImportModalProps> = ({
                   onChange={(e) => setSeason(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-zinc-100 focus:border-purple-500 outline-none cursor-pointer"
                 >
+                  <option value="2026">2026 NFL Season</option>
                   <option value="2025">2025 NFL Season</option>
                   <option value="2024">2024 NFL Season</option>
-                  <option value="2023">2023 NFL Season</option>
                 </select>
               </div>
 

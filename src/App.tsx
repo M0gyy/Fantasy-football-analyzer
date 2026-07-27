@@ -8,6 +8,7 @@ import { WaiverWireView } from './components/WaiverWireView';
 import { DraftKitView } from './components/DraftKitView';
 import { AICoachView } from './components/AICoachView';
 import { NFLfastrMatchupView } from './components/NFLfastrMatchupView';
+import { AnalystRankingsView } from './components/AnalystRankingsView';
 import { PlayerDetailModal } from './components/PlayerDetailModal';
 import { LeagueSettingsModal } from './components/LeagueSettingsModal';
 import { YahooImportModal } from './components/YahooImportModal';
@@ -153,6 +154,13 @@ export default function App() {
 
           {activeTab === 'nflfastr' && (
             <NFLfastrMatchupView />
+          )}
+
+          {activeTab === 'analysts' && (
+            <AnalystRankingsView
+              allPlayers={allPlayers}
+              onSelectPlayer={setSelectedPlayerModal}
+            />
           )}
 
           {activeTab === 'roster' && (

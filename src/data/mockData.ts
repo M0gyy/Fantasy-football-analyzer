@@ -1,12 +1,16 @@
 import { Player, RosterSlot, TeamMatchup, WaiverTarget, DraftPick, LeagueSettings } from '../types';
 
 export const INITIAL_LEAGUE_SETTINGS: LeagueSettings = {
-  leagueName: "Apex Champions Fantasy League",
+  leagueName: "2026 Apex Champions Fantasy League",
   sport: "NFL",
   scoringFormat: "PPR",
   teamsCount: 12,
   faabBudget: 100,
-  currentWeek: 9,
+  currentWeek: 1,
+  myTeamName: "Apex Dominators",
+  myTeamNumber: 1,
+  yahooLeagueId: "847291",
+  isYahooSynced: true
 };
 
 export const MOCK_PLAYERS: Player[] = [

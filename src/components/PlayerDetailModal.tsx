@@ -7,7 +7,9 @@ import {
   Calendar,
   Activity,
   Award,
-  ArrowRightLeft
+  ArrowRightLeft,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -20,6 +22,7 @@ import {
 } from 'recharts';
 import { Player } from '../types';
 import { MOCK_PLAYERS } from '../data/mockData';
+import { generateAnalystConsensus } from '../data/analystData';
 import { getInjuryBadgeColor, getMatchupBadgeColor } from '../utils/fantasyCalculators';
 import { AdvancedAnalyticsCard } from './AdvancedAnalyticsCard';
 import { PlayerComparisonTool } from './PlayerComparisonTool';
@@ -38,6 +41,8 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'COMPARE'>('OVERVIEW');
 
   if (!player) return null;
+
+  const analystConsensus = player.analystConsensus || generateAnalystConsensus(player);
 
   const chartData = player.gameLogs.map((log) => ({
     week: `Wk ${log.week}`,
@@ -103,6 +108,63 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
           <div className="space-y-4">
             {/* Advanced Metrics & PFF / Football Outsiders Card */}
             <AdvancedAnalyticsCard player={player} />
+
+            {/* Expert Analyst Consensus Card */}
+            {analystConsensus && (
+              <div className="bg-zinc-900 border border-purple-900/60 rounded-lg p-3.5 space-y-3 shadow-md">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      Expert Consensus Rankings (ECR)
+                    </span>
+                  </div>
+                  <span className="text-[10px] bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded font-bold">
+                    {analystConsensus.expertTag || "Consensus Target"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs font-mono">
+                  <div className="bg-zinc-950 p-2 rounded border border-zinc-800">
+                    <span className="text-[9px] text-zinc-500 uppercase block">ECR Overall</span>
+                    <span className="text-sm font-bold text-white">#{analystConsensus.ecrRank}</span>
+                  </div>
+                  <div className="bg-zinc-950 p-2 rounded border border-zinc-800">
+                    <span className="text-[9px] text-zinc-500 uppercase block">Positional Rank</span>
+                    <span className="text-sm font-bold text-purple-400">{analystConsensus.ecrPositionalRank}</span>
+                  </div>
+                  <div className="bg-zinc-950 p-2 rounded border border-zinc-800">
+                    <span className="text-[9px] text-zinc-500 uppercase block">Rank Range</span>
+                    <span className="text-sm font-bold text-zinc-300">#{analystConsensus.bestRank} - #{analystConsensus.worstRank}</span>
+                  </div>
+                  <div className="bg-zinc-950 p-2 rounded border border-zinc-800">
+                    <span className="text-[9px] text-zinc-500 uppercase block">Start Consensus</span>
+                    <span className="text-sm font-bold text-emerald-400">{analystConsensus.startConsensusPct}%</span>
+                  </div>
+                </div>
+
+                {/* Top Analyst Breakdown Chips */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block font-mono">
+                    Top Analyst Projections & Ranks
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-sans">
+                    {analystConsensus.analystRanks.slice(0, 4).map((rank, i) => (
+                      <div key={i} className="bg-zinc-950 p-2 rounded border border-zinc-800 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="font-bold text-white text-[11px] block">{rank.analystName}</span>
+                          <span className="text-[10px] text-zinc-400">{rank.outlet}</span>
+                        </div>
+                        <div className="text-right font-mono">
+                          <span className="text-purple-400 font-bold block">{rank.positionRank}</span>
+                          <span className="text-[10px] text-amber-400">{rank.projectedPoints} pts</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

@@ -169,9 +169,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="flex items-center gap-2 text-[10px] font-mono text-indigo-400 font-bold tracking-widest uppercase mb-1">
               <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
               <span>WEEK {leagueSettings.currentWeek} LIVE MATCHUP METRICS</span>
+              {leagueSettings.isYahooSynced && (
+                <span className="text-[10px] bg-purple-950/90 text-purple-200 border border-purple-700/60 px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1 normal-case tracking-normal">
+                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                  Y! Managed Team #{leagueSettings.myTeamNumber || 1}
+                </span>
+              )}
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-              <span>{matchup.myTeamName}</span>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2 flex-wrap">
+              <span className="text-purple-300 flex items-center gap-1.5">
+                {leagueSettings.myTeamName || matchup.myTeamName}
+                <span className="text-xs bg-purple-900/60 text-purple-200 border border-purple-700/50 px-1.5 py-0.5 rounded font-mono font-normal">
+                  (Your Team)
+                </span>
+              </span>
               <span className="text-zinc-600 text-sm font-mono font-normal">VS</span>
               <span className="text-zinc-300">{matchup.opponentTeamName}</span>
             </h1>

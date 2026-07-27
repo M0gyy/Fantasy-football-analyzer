@@ -72,6 +72,28 @@ export interface AdvancedPlayerStats {
   pffBlockGrade?: number; // PFF Blocking Grade e.g. 78.4
 }
 
+export interface AnalystRankEntry {
+  analystName: string; // e.g. "FantasyPros ECR", "Mike Clay (ESPN)", "Evan Silva (ETR)", "PFF Consensus", "Matthew Berry (Rotoballer)", "Matt Harmon (Yahoo)"
+  outlet: string; // e.g. "FantasyPros", "ESPN", "Establish The Run", "PFF", "Rotoballer", "Yahoo Sports"
+  rank: number;
+  positionRank: string; // e.g. "WR4", "RB2"
+  projectedPoints?: number;
+  recommendation: 'MUST_START' | 'START' | 'FLEX' | 'BENCH' | 'RISKY';
+  note?: string;
+}
+
+export interface AnalystConsensus {
+  ecrRank: number; // Expert Consensus Rank overall
+  ecrPositionalRank: string; // e.g. "WR3"
+  bestRank: number;
+  worstRank: number;
+  avgRank: number;
+  stdDev: number; // Variance / disagreement level
+  startConsensusPct: number; // e.g. 94 (% of top analysts recommending START)
+  analystRanks: AnalystRankEntry[];
+  expertTag?: string; // e.g. "🔥 Consensus Smash", "⚠️ High Variance Volatile", "💎 High-Stakes Target"
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -98,6 +120,7 @@ export interface Player {
   redzoneTouches?: number;
   usageRate?: number; // % for NBA
   advancedStats?: AdvancedPlayerStats;
+  analystConsensus?: AnalystConsensus;
 }
 
 export interface RosterSlot {
@@ -198,6 +221,10 @@ export interface LeagueSettings {
   teamsCount: number;
   faabBudget: number;
   currentWeek: number;
+  myTeamName?: string;
+  myTeamNumber?: number;
+  yahooLeagueId?: string;
+  isYahooSynced?: boolean;
 }
 
 export interface ReceiverProfile {

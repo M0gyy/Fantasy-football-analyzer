@@ -1,6 +1,6 @@
 {
-  "name": "Fantasy Sports Command Center",
-  "description": "All-in-one fantasy sports analytics platform featuring AI trade analyzer, start/sit advisor, draft simulator, roster optimizer, and live coach.",
+  "name": "2026 Fantasy Sports Command Center",
+  "description": "All-in-one 2026 NFL fantasy sports analytics platform featuring AI trade analyzer, start/sit advisor, draft simulator, roster optimizer, and live coach.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
