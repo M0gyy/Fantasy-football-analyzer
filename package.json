@@ -25,7 +25,11 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+<<<<<<< HEAD
     "tailwindcss": "^4.3.3",
+=======
+    "tailwindcss": "^4",
+>>>>>>> 634fe696dbc144ecbf5228f6a242df2eb0a6ed20
     "typescript": "^5",
     "vite": "^5"
   }
