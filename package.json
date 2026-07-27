@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "build:static": "next build",
-    "start": "next start"
+    "build": "vite build",
+    "build:static": "vite build",
+    "start": "vite start"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
