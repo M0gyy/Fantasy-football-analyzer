@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { getIronSession } from "iron-session";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,6 +11,209 @@ const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 
 app.use(express.json());
+
+// ---------------------------
+// SESSION CONFIG
+// ---------------------------
+interface SessionData {
+  yahooAccessToken?: string;
+  yahooRefreshToken?: string;
+  yahooTokenExpiry?: number;
+}
+
+const SESSION_OPTIONS = {
+  password: process.env.SESSION_SECRET || "change-me-use-a-32-char-secret!!",
+  cookieName: "gridiron_session",
+  cookieOptions: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    sameSite: "lax" as const,
+  },
+};
+
+function getSession(req: express.Request, res: express.Response) {
+  return getIronSession<SessionData>(req, res, SESSION_OPTIONS);
+}
+
+// ---------------------------
+// YAHOO OAUTH CONFIG
+// ---------------------------
+const YAHOO_CLIENT_ID = process.env.YAHOO_CLIENT_ID || "";
+const YAHOO_CLIENT_SECRET = process.env.YAHOO_CLIENT_SECRET || "";
+const YAHOO_AUTH_BASE = "https://api.login.yahoo.com/oauth2";
+const YAHOO_API_BASE = "https://fantasysports.yahooapis.com/fantasy/v2";
+
+function getYahooRedirectUri(req: express.Request): string {
+  // Use REPLIT_DEV_DOMAIN when available, otherwise fall back to host header
+  const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+  if (replitDomain) return `https://${replitDomain}/api/auth/yahoo/callback`;
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+  const host = (req.headers["x-forwarded-host"] as string) || req.headers.host || "localhost:5000";
+  return `${proto}://${host}/api/auth/yahoo/callback`;
+}
+
+async function refreshYahooToken(session: SessionData & { save: () => Promise<void> }): Promise<string | null> {
+  if (!session.yahooRefreshToken) return null;
+  try {
+    const basic = Buffer.from(`${YAHOO_CLIENT_ID}:${YAHOO_CLIENT_SECRET}`).toString("base64");
+    const res = await fetch(`${YAHOO_AUTH_BASE}/get_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basic}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        redirect_uri: "oob",
+        refresh_token: session.yahooRefreshToken,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    session.yahooAccessToken = data.access_token;
+    if (data.refresh_token) session.yahooRefreshToken = data.refresh_token;
+    session.yahooTokenExpiry = Date.now() + data.expires_in * 1000;
+    await session.save();
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
+
+async function getValidYahooToken(req: express.Request, res: express.Response): Promise<string | null> {
+  const session = await getSession(req, res);
+  if (!session.yahooAccessToken) return null;
+  // Refresh if within 5 minutes of expiry
+  if (session.yahooTokenExpiry && Date.now() > session.yahooTokenExpiry - 5 * 60 * 1000) {
+    return refreshYahooToken(session as any);
+  }
+  return session.yahooAccessToken;
+}
+
+async function yahooFetch(token: string, endpoint: string): Promise<any> {
+  const url = `${YAHOO_API_BASE}${endpoint}${endpoint.includes("?") ? "&" : "?"}format=json`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Yahoo API ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return res.json();
+}
+
+// Parse the deeply nested Yahoo Fantasy API JSON into flat league objects
+function parseYahooLeagues(data: any): any[] {
+  try {
+    const users = data?.fantasy_content?.users;
+    const user = users?.["0"]?.user;
+    if (!Array.isArray(user)) return [];
+    const games = user[1]?.games;
+    if (!games) return [];
+    const leagues: any[] = [];
+    const count = games.count || 0;
+    for (let i = 0; i < count; i++) {
+      const game = games[String(i)]?.game;
+      if (!Array.isArray(game)) continue;
+      const gameInfo = game[0] || {};
+      const leaguesData = game[1]?.leagues;
+      if (!leaguesData) continue;
+      const lCount = leaguesData.count || 0;
+      for (let j = 0; j < lCount; j++) {
+        const league = leaguesData[String(j)]?.league;
+        if (!Array.isArray(league)) continue;
+        const info = league[0] || {};
+        leagues.push({
+          league_key: info.league_key,
+          league_id: info.league_id,
+          name: info.name,
+          num_teams: info.num_teams,
+          scoring_type: info.scoring_type,
+          current_week: info.current_week,
+          season: info.season,
+          game_code: gameInfo.code,
+          game_name: gameInfo.name,
+        });
+      }
+    }
+    return leagues;
+  } catch {
+    return [];
+  }
+}
+
+// Parse teams in a league from Yahoo API response
+function parseYahooTeams(data: any): any[] {
+  try {
+    const teams: any[] = [];
+    const teamsData = data?.fantasy_content?.league?.[1]?.teams;
+    if (!teamsData) return [];
+    const count = teamsData.count || 0;
+    for (let i = 0; i < count; i++) {
+      const team = teamsData[String(i)]?.team;
+      if (!Array.isArray(team)) continue;
+      const info: Record<string, any> = {};
+      for (const item of (team[0] || [])) {
+        if (item && typeof item === "object") Object.assign(info, item);
+      }
+      const managers = info.managers;
+      const isOwned = info.is_owned_by_current_login === 1 || info.is_owned_by_current_login === "1";
+      teams.push({
+        team_key: info.team_key,
+        team_id: info.team_id,
+        name: info.name,
+        is_mine: isOwned,
+        managers,
+      });
+    }
+    return teams;
+  } catch {
+    return [];
+  }
+}
+
+// Parse roster players from Yahoo API response
+function parseYahooRoster(data: any): any[] {
+  try {
+    const players: any[] = [];
+    const rosterData = data?.fantasy_content?.team?.[1]?.roster;
+    const playersData = rosterData?.players;
+    if (!playersData) return [];
+    const count = playersData.count || 0;
+    for (let i = 0; i < count; i++) {
+      const playerArr = playersData[String(i)]?.player;
+      if (!Array.isArray(playerArr)) continue;
+      const rawInfo = playerArr[0] || [];
+      const info: Record<string, any> = {};
+      for (const item of rawInfo) {
+        if (item && typeof item === "object") {
+          if (item.name) Object.assign(info, item.name); // {full, first, last, ascii_first, ascii_last}
+          else Object.assign(info, item);
+        }
+      }
+      const selectedPos = playerArr[1]?.selected_position;
+      const selPosArr = Array.isArray(selectedPos) ? selectedPos : [];
+      const slotPosition = selPosArr.find((x: any) => x?.position)?.position || "BN";
+      players.push({
+        player_key: info.player_key,
+        player_id: info.player_id,
+        name: info.full || `${info.first || ""} ${info.last || ""}`.trim(),
+        position: info.display_position || info.eligible_positions?.[0]?.position || "N/A",
+        team: info.editorial_team_abbr?.toUpperCase() || "FA",
+        photoUrl: info.image_url || "",
+        status: info.status || "Active",
+        slot: slotPosition,
+        opponent: info.editorial_opponent || "",
+      });
+    }
+    return players;
+  } catch {
+    return [];
+  }
+}
 
 // Initialize Gemini API client on server
 const apiKey = process.env.GEMINI_API_KEY;
@@ -49,6 +253,135 @@ function getAiClient(): GoogleGenAI {
 
 // ---------------------------
 // API ENDPOINTS
+// ---------------------------
+
+// ---------------------------
+// YAHOO AUTH ROUTES
+// ---------------------------
+
+// GET /api/auth/yahoo — start OAuth flow
+app.get("/api/auth/yahoo", (req, res) => {
+  if (!YAHOO_CLIENT_ID) {
+    return res.status(500).send("YAHOO_CLIENT_ID is not configured on the server.");
+  }
+  const redirectUri = getYahooRedirectUri(req);
+  const params = new URLSearchParams({
+    client_id: YAHOO_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "openid fspt-r",
+  });
+  res.redirect(`${YAHOO_AUTH_BASE}/request_auth?${params}`);
+});
+
+// GET /api/auth/yahoo/callback — handle OAuth callback
+app.get("/api/auth/yahoo/callback", async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) {
+    return res.redirect(`/?yahoo_error=${encodeURIComponent(String(error || "no_code"))}`);
+  }
+  try {
+    const redirectUri = getYahooRedirectUri(req);
+    const basic = Buffer.from(`${YAHOO_CLIENT_ID}:${YAHOO_CLIENT_SECRET}`).toString("base64");
+    const tokenRes = await fetch(`${YAHOO_AUTH_BASE}/get_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basic}`,
+      },
+      body: new URLSearchParams({
+        code: String(code),
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      console.error("Yahoo token exchange failed:", errText);
+      return res.redirect(`/?yahoo_error=${encodeURIComponent("token_exchange_failed")}`);
+    }
+    const tokenData = await tokenRes.json() as any;
+    const session = await getSession(req, res);
+    session.yahooAccessToken = tokenData.access_token;
+    session.yahooRefreshToken = tokenData.refresh_token;
+    session.yahooTokenExpiry = Date.now() + (tokenData.expires_in || 3600) * 1000;
+    await session.save();
+    res.redirect("/?yahoo_connected=true");
+  } catch (err: any) {
+    console.error("Yahoo callback error:", err?.message);
+    res.redirect(`/?yahoo_error=${encodeURIComponent("server_error")}`);
+  }
+});
+
+// GET /api/auth/yahoo/status — is the user authenticated?
+app.get("/api/auth/yahoo/status", async (req, res) => {
+  try {
+    const token = await getValidYahooToken(req, res);
+    res.json({ connected: Boolean(token) });
+  } catch {
+    res.json({ connected: false });
+  }
+});
+
+// GET /api/auth/yahoo/redirect-uri — return the redirect URI the user must whitelist in Yahoo
+app.get("/api/auth/yahoo/redirect-uri", (req, res) => {
+  res.json({ redirectUri: getYahooRedirectUri(req) });
+});
+
+// POST /api/auth/yahoo/logout — clear session
+app.post("/api/auth/yahoo/logout", async (req, res) => {
+  const session = await getSession(req, res);
+  session.yahooAccessToken = undefined;
+  session.yahooRefreshToken = undefined;
+  session.yahooTokenExpiry = undefined;
+  await session.save();
+  res.json({ ok: true });
+});
+
+// GET /api/yahoo/leagues — fetch user's NFL fantasy leagues
+app.get("/api/yahoo/leagues", async (req, res) => {
+  try {
+    const token = await getValidYahooToken(req, res);
+    if (!token) return res.status(401).json({ error: "Not authenticated with Yahoo" });
+    const data = await yahooFetch(token, "/users;use_login=1/games;game_keys=nfl/leagues");
+    const leagues = parseYahooLeagues(data);
+    res.json({ leagues });
+  } catch (err: any) {
+    console.error("Error in /api/yahoo/leagues:", err?.message);
+    res.status(500).json({ error: err?.message || "Failed to fetch leagues" });
+  }
+});
+
+// GET /api/yahoo/teams/:leagueKey — fetch teams in a league
+app.get("/api/yahoo/teams/:leagueKey", async (req, res) => {
+  try {
+    const token = await getValidYahooToken(req, res);
+    if (!token) return res.status(401).json({ error: "Not authenticated with Yahoo" });
+    const data = await yahooFetch(token, `/league/${req.params.leagueKey}/teams`);
+    const teams = parseYahooTeams(data);
+    res.json({ teams });
+  } catch (err: any) {
+    console.error("Error in /api/yahoo/teams:", err?.message);
+    res.status(500).json({ error: err?.message || "Failed to fetch teams" });
+  }
+});
+
+// GET /api/yahoo/roster/:teamKey — fetch roster for a team
+app.get("/api/yahoo/roster/:teamKey", async (req, res) => {
+  try {
+    const token = await getValidYahooToken(req, res);
+    if (!token) return res.status(401).json({ error: "Not authenticated with Yahoo" });
+    const data = await yahooFetch(token, `/team/${req.params.teamKey}/roster/players`);
+    const players = parseYahooRoster(data);
+    res.json({ players });
+  } catch (err: any) {
+    console.error("Error in /api/yahoo/roster:", err?.message);
+    res.status(500).json({ error: err?.message || "Failed to fetch roster" });
+  }
+});
+
+// ---------------------------
+// GEMINI AI ROUTES
 // ---------------------------
 
 // 1. Health check
