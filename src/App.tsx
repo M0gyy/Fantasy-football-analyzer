@@ -53,20 +53,6 @@ export default function App() {
       });
   }, []);
 
-  // Auto-open Yahoo import modal after OAuth redirect
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('yahoo_connected') === 'true') {
-      setIsYahooImportOpen(true);
-      // Clean up the URL without reloading
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-    if (params.get('yahoo_error')) {
-      // Clean up the URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
-
   // Swap two roster slots
   const handleSwapPlayers = (slotIdA: string, slotIdB: string) => {
     setRoster(prev => {

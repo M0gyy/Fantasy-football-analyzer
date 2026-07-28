@@ -473,7 +473,7 @@ export const LeaguePowerRankings: React.FC<LeaguePowerRankingsProps> = ({
                   <td className="p-2.5">
                     <div className="flex items-center gap-1.5">
                       <span className={`font-bold ${team.isUserTeam ? 'text-emerald-400' : 'text-zinc-200'}`}>
-                        {team.teamName}
+                        {team.isUserTeam ? (leagueSettings.myTeamName || team.teamName) : team.teamName}
                       </span>
                       {team.isUserTeam && (
                         <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1 py-0.2 rounded uppercase font-normal">
